@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小黄人主题摊位 - Set Induksi</title>
+    <style>
+        body { margin: 0; padding: 0; height: 100vh; background: linear-gradient(135deg, #ffb300, #ffeb3b, #ab47bc); font-family: 'Microsoft YaHei', sans-serif; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .container { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .title { position: absolute; top: 30px; background: rgba(255, 255, 255, 0.95); padding: 15px 40px; border-radius: 50px; font-size: 32px; font-weight: bold; color: #d84315; box-shadow: 0 8px 16px rgba(0,0,0,0.2); border: 4px dashed #ff6f00; }
+        .wheel-container { position: relative; width: 340px; height: 340px; margin-top: 20px; }
+        .wheel { width: 100%; height: 100%; border-radius: 50%; border: 8px solid #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.3); position: relative; overflow: hidden; transition: transform 4s cubic-bezier(0.15, 0.95, 0.15, 1); background: conic-gradient( #ffeb3b 0deg 45deg, #8e24aa 45deg 90deg, #ffeb3b 90deg 135deg, #8e24aa 135deg 180deg, #ffeb3b 180deg 225deg, #8e24aa 225deg 270deg, #ffeb3b 270deg 315deg, #8e24aa 315deg 360deg ); }
+        .pointer { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 35px solid #d32f2f; z-index: 10; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.3)); }
+        .spin-btn { margin-top: 25px; padding: 12px 35px; font-size: 20px; font-weight: bold; color: #fff; background: #ff5722; border: none; border-radius: 30px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.3); transition: 0.2s; }
+        .spin-btn:hover { background: #f44336; transform: scale(1.05); }
+        .legend { position: absolute; bottom: 20px; right: 20px; background: rgba(255, 255, 255, 0.95); padding: 15px 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); font-size: 14px; color: #333; }
+        .legend-item { display: flex; align-items: center; margin: 5px 0; }
+        .color-box { width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; border: 1px solid #ccc; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.65); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #fff; padding: 30px 40px; border-radius: 20px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.3); animation: popIn 0.3s ease-in-out; max-width: 380px; }
+        .modal-content h2 { margin: 0 0 15px 0; font-size: 26px; }
+        .modal-img { width: 200px; height: 200px; object-fit: contain; border-radius: 12px; margin-bottom: 15px; background: #f9f9f9; padding: 5px; border: 2px solid #eee; }
+        .modal-content button { padding: 10px 25px; font-size: 16px; background: #4caf50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .modal-content button:hover { background: #45a049; }
+        @keyframes popIn { 0% { transform: scale(0.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">🎡 欢迎来到小黄人主题摊位 🎪</div>
+        <div class="wheel-container">
+            <div class="pointer"></div>
+            <div class="wheel" id="wheel"></div>
+        </div>
+        <button class="spin-btn" onclick="spinWheel()">开始抽奖转盘</button>
+        <div class="legend">
+            <strong>【奖品身份对照】</strong>
+            <div class="legend-item">
+                <div class="color-box" style="background: #ffeb3b;"></div>
+                <span>黄色 = 普通版小黄人</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box" style="background: #8e24aa;"></div>
+                <span>紫色 = 怪异小黄人</span>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="resultModal">
+        <div class="modal-content">
+            <h2 id="modalText"></h2>
+            <img id="modalImg" class="modal-img" src="" alt="小黄人图片">
+            <br>
+            <button onclick="closeModal()">返回轮盘页面</button>
+        </div>
+    </div>
+    <script>
+        let audioCtx = null;
+        function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+        function playTickSound() {
+            if (!audioCtx) return;
+            try {
+                let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+            } catch(e) {}
+        }
+        function playSuccessSound() {
+            if (!audioCtx) return;
+            try {
+                let now = audioCtx.currentTime; let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+                osc.type = 'sine'; osc.frequency.setValueAtTime(523.25, now); osc.frequency.setValueAtTime(659.25, now + 0.1); osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain); gain.connect(audioCtx.destination); osc.start(now); osc.stop(now + 0.4);
+            } catch(e) {}
+        }
+        let currentRotation = 0; let isSpinning = false;
+        function spinWheel() {
+            if (isSpinning) return; initAudio(); isSpinning = true;
+            const wheel = document.getElementById('wheel');
+            const randomDegree = Math.floor(Math.random() * 360) + 1440; currentRotation += randomDegree;
+            wheel.style.transform = `rotate(${currentRotation}deg)`;
+            let tickCount = 0;
+            let interval = setInterval(() => { playTickSound(); tickCount++; if (tickCount > 25) clearInterval(interval); }, 120);
+            setTimeout(() => { clearInterval(interval); isSpinning = false; const actualDegree = 360 - (currentRotation % 360); const sector = Math.floor(actualDegree / 45); playSuccessSound(); showResult(sector % 2 === 0); }, 4000);
+        }
+        function showResult(isYellow) {
+            const modal = document.getElementById('resultModal'); const modalText = document.getElementById('modalText'); const modalImg = document.getElementById('modalImg');
+            if (isYellow) { 
+                modalText.innerHTML = "🎉 恭喜你！抽到普通版小黄人！"; 
+                modalText.style.color = "#fbc02d"; 
+                modalImg.src = "https://img.sanishtech.com/u/1b50d432118ab01e9f86e51b8437e5d0.jpeg"; 
+            }
+            else { 
+                modalText.innerHTML = "🤪 哎呀！抽到怪异小黄人！"; 
+                modalText.style.color = "#8e24aa"; 
+                // 已更新为你的最新怪异小黄人链接
+                modalImg.src = "https://img.sanishtech.com/u/3051c837eababc12416f8fa79d4940da.jpg"; 
+            }
+            modal.style.display = 'flex';
+        }
+        function closeModal() { const modal = document.getElementById('resultModal'); modal.style.display = 'none'; }
+    </script>
+</body>
+</html>
